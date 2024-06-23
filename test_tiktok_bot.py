@@ -14,6 +14,84 @@ import errors
 from browser import BrowserExtractor
 from enums import ErrorMsg, LiveStatus, Mode, StatusCode, WaitTime
 
+DEFAULT_INTERVAL = 10
+DEFAULT_HEADERS = {"User-Agent": "Chrome"}
+DEFAULT_OUTPUT = "output"
+DEFAULT_FORMAT = "ts"
+
+
+class TikTok:
+    def __init__(self, user: dict):
+        self.platform = user["platform"]
+        self.id = user["id"]
+
+        self.name = user.get("name", self.id)
+        self.interval = user.get("interval", DEFAULT_INTERVAL)
+        self.headers = user.get("headers", DEFAULT_HEADERS)
+        self.cookies = user.get("cookies")
+        self.format = user.get("format", DEFAULT_FORMAT)
+        self.proxy = user.get("proxy")
+        self.output = user.get("output", DEFAULT_OUTPUT)  # out_dir
+
+        self.flag = f"[{self.platform}][{self.name}]"
+
+        logger.debug(f"platform: {self.platform}")
+        logger.debug(f"name: {self.name}")
+        logger.debug(f"flag: {self.flag}")
+
+        self.get_cookies()
+        self.client = self.get_client()
+
+        # self.mode = mode                          # automatic
+        # self.browser_exec = browser_exec
+        # self.combine = combine
+        # self.delete_segments = delete_segments
+        # self.use_ffmpeg = use_ffmpeg
+        # self.duration = duration                  # interval
+
+        # if proxy:
+        #     self.req = bot_utils.get_proxy_session(proxy)
+        # else:
+        #     self.req = req
+        # self.status = LiveStatus.BOT_INIT
+        # self.out_file = None
+        # self.video_list = []
+
+    def get_client(self):
+        client_kwargs = {
+            "http2": True,
+            "timeout": self.interval,
+            "limits": httpx.Limits(max_keepalive_connections=100, keepalive_expiry=self.interval * 2),
+            "headers": self.headers,
+            "cookies": self.cookies,
+        }
+        # Check if a proxy is set
+        if self.proxy:
+            if "socks" in self.proxy:
+                client_kwargs["transport"] = AsyncProxyTransport.from_url(self.proxy)
+            else:
+                client_kwargs["proxies"] = self.proxy
+        return httpx.AsyncClient(**client_kwargs)
+
+    @staticmethod
+    def get_proxy_session(proxy_url):
+        """Request with TOR or other proxy.
+        TOR uses 9050 as the default socks port.
+        To (hopefully) prevent getting home IP blacklisted for bot activity.
+        """
+        try:
+            logging.info(f"Using proxy: {proxy_url}")
+            session = req.session()
+            session.proxies = {"http": proxy_url, "https": proxy_url}
+            # logging.info("regular ip:")
+            # logging.info(req.get("http://httpbin.org/ip").text)
+            # logging.info("proxy ip:")
+            # logging.info(session.get("http://httpbin.org/ip").text)
+            return session
+        except Exception as ex:
+            logging.error(ex)
+            return req
+
 
 class TikTok:
 
@@ -220,7 +298,7 @@ class TikTok:
                         ffmpeg_err = ffmpeg_err + "".join(line)
                 if ffmpeg_err:
                     raise errors.FFmpeg(ffmpeg_err.strip())
-                logging.info("Concat finished")
+                logging.info(f"Concat finished")
                 if self.delete_segments:
                     for v in self.video_list:
                         os.remove(v)
