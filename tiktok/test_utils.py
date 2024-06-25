@@ -3,6 +3,7 @@ import argparse
 PLATFORM_CHOICES = [
     "Afreeca",
     "Chzzk",
+    "TikTok",
 ]
 FORMAT_CHOICES = ["mp4", "ts", "flv"]
 
