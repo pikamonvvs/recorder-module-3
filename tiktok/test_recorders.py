@@ -1,4 +1,5 @@
 import io
+import json
 import logging
 import os
 import re
@@ -7,7 +8,8 @@ import sys
 import time
 
 import ffmpeg
-import requests as req
+import requests
+from bs4 import BeautifulSoup
 
 import bot_utils
 import errors
@@ -31,87 +33,27 @@ class TikTok:
         self.cookies = user.get("cookies")
         self.format = user.get("format", DEFAULT_FORMAT)
         self.proxy = user.get("proxy")
-        self.output = user.get("output", DEFAULT_OUTPUT)  # out_dir
+        self.output = user.get("output", DEFAULT_OUTPUT)
 
         self.flag = f"[{self.platform}][{self.name}]"
 
-        logger.debug(f"platform: {self.platform}")
-        logger.debug(f"name: {self.name}")
-        logger.debug(f"flag: {self.flag}")
+        self.room_id = self.get_room_id_from_user()
+        self.name = self.get_user_from_room_id()
+        self.proxy = None
+        self.use_ffmpeg = True
+        self.mode = Mode.AUTOMATIC
+        self.duration = 0
+        self.browser_exec = False
+        self.combine = True
+        self.delete_segments = True
 
-        self.get_cookies()
-        self.client = self.get_client()
-
-        # self.mode = mode                          # automatic
-        # self.browser_exec = browser_exec
-        # self.combine = combine
-        # self.delete_segments = delete_segments
-        # self.use_ffmpeg = use_ffmpeg
-        # self.duration = duration                  # interval
-
-        # if proxy:
-        #     self.req = bot_utils.get_proxy_session(proxy)
-        # else:
-        #     self.req = req
-        # self.status = LiveStatus.BOT_INIT
-        # self.out_file = None
-        # self.video_list = []
-
-    def get_client(self):
-        client_kwargs = {
-            "http2": True,
-            "timeout": self.interval,
-            "limits": httpx.Limits(max_keepalive_connections=100, keepalive_expiry=self.interval * 2),
-            "headers": self.headers,
-            "cookies": self.cookies,
-        }
-        # Check if a proxy is set
+        self.req = requests
         if self.proxy:
-            if "socks" in self.proxy:
-                client_kwargs["transport"] = AsyncProxyTransport.from_url(self.proxy)
-            else:
-                client_kwargs["proxies"] = self.proxy
-        return httpx.AsyncClient(**client_kwargs)
+            self.req = bot_utils.get_proxy_session(self.proxy)
 
-    @staticmethod
-    def get_proxy_session(proxy_url):
-        """Request with TOR or other proxy.
-        TOR uses 9050 as the default socks port.
-        To (hopefully) prevent getting home IP blacklisted for bot activity.
-        """
-        try:
-            logging.info(f"Using proxy: {proxy_url}")
-            session = req.session()
-            session.proxies = {"http": proxy_url, "https": proxy_url}
-            # logging.info("regular ip:")
-            # logging.info(req.get("http://httpbin.org/ip").text)
-            # logging.info("proxy ip:")
-            # logging.info(session.get("http://httpbin.org/ip").text)
-            return session
-        except Exception as ex:
-            logging.error(ex)
-            return req
-
-
-class TikTok:
-
-    def __init__(self, out_dir, mode=Mode.MANUAL, user=None, room_id=None, use_ffmpeg=None, proxy=None, duration=None, browser_exec=None, combine=None, delete_segments=None):
-        self.out_dir = out_dir
-        self.mode = mode
-        self.user = user
-        self.room_id = room_id
-        self.use_ffmpeg = use_ffmpeg
-        self.duration = duration
-        self.browser_exec = browser_exec
-        self.combine = combine
-        self.delete_segments = delete_segments
-        if proxy:
-            self.req = bot_utils.get_proxy_session(proxy)
-        else:
-            self.req = req
         self.status = LiveStatus.BOT_INIT
         self.out_file = None
-        self.video_list = []
+        self.video_list = [str]
 
     def run(self):
         """Runs the program in the selected mode.
@@ -126,16 +68,16 @@ class TikTok:
                     bot_utils.retry_wait(WaitTime.LAG, False)
                 if self.room_id is None:
                     self.room_id = self.get_room_id_from_user()
-                if self.user is None:
-                    self.user = self.get_user_from_room_id()
+                if self.name is None:
+                    self.name = self.get_user_from_room_id()
                 if self.status == LiveStatus.BOT_INIT:
-                    logging.info(f"Username: {self.user}")
+                    logging.info(f"Username: {self.name}")
                     logging.info(f"Room ID: {self.room_id}")
 
                 self.status = self.is_user_live()
 
                 if self.status == LiveStatus.OFFLINE:
-                    logging.info(f"{self.user} is offline")
+                    logging.info(f"{self.name} is offline")
                     self.room_id = None
                     if self.out_file:
                         self.finish_recording()
@@ -147,12 +89,12 @@ class TikTok:
                     live_url = self.get_live_url()
                     self.start_recording(live_url)
                 elif self.status == LiveStatus.LIVE:
-                    logging.info(f"{self.user} is live")
+                    logging.info(f"{self.name} is live")
                     live_url = self.get_live_url()
                     logging.info(f"Live URL: {live_url}")
                     self.start_recording(live_url)
 
-            except (errors.GenericReq, ValueError, req.HTTPError, errors.BrowserExtractor, errors.ConnectionClosed, errors.UserNotFound) as e:
+            except (errors.GenericReq, ValueError, requests.HTTPError, errors.BrowserExtractor, errors.ConnectionClosed, errors.UserNotFound) as e:
                 if self.mode == Mode.MANUAL:
                     raise e
                 else:
@@ -174,16 +116,16 @@ class TikTok:
         should_exit = False
         current_date = time.strftime("%Y.%m.%d_%H-%M-%S", time.localtime())
         suffix = "" if self.use_ffmpeg else "_flv"
-        self.out_file = f"{self.out_dir}{self.user}_{current_date}{suffix}.mp4"
+        self.out_file = f"{self.output}{self.name}_{current_date}{suffix}.mp4"
         if self.status is not LiveStatus.LAGGING:
-            logging.info(f"Output directory: {self.out_dir}")
+            logging.info(f"Output directory: {self.output}")
         try:
             if self.use_ffmpeg:
                 self.handle_recording_ffmpeg(live_url)
                 if self.duration is not None:
                     should_exit = True
             else:
-                response = req.get(live_url, stream=True)
+                response = requests.get(live_url, stream=True)
                 with open(self.out_file, "wb") as file:
                     start_time = time.time()
                     rec_started = False
@@ -279,9 +221,9 @@ class TikTok:
         """Combine multiple videos into one if needed"""
         try:
             current_date = time.strftime("%Y.%m.%d_%H-%M-%S", time.localtime())
-            ffmpeg_concat_list = f"{self.user}_{current_date}_concat_list.txt"
+            ffmpeg_concat_list = f"{self.name}_{current_date}_concat_list.txt"
             if self.combine and len(self.video_list) > 1:
-                self.out_file = f"{self.out_dir}{self.user}_{current_date}_concat.mp4"
+                self.out_file = f"{self.output}{self.name}_{current_date}_concat.mp4"
                 logging.info(f"Concatenating {len(self.video_list)} video files")
                 with open(ffmpeg_concat_list, "w") as file:
                     for v in self.video_list:
@@ -298,13 +240,13 @@ class TikTok:
                         ffmpeg_err = ffmpeg_err + "".join(line)
                 if ffmpeg_err:
                     raise errors.FFmpeg(ffmpeg_err.strip())
-                logging.info(f"Concat finished")
+                logging.info("Concat finished")
                 if self.delete_segments:
                     for v in self.video_list:
                         os.remove(v)
                     logging.info(f"Deleted {len(self.video_list)} video files")
                 else:
-                    videos_dir = os.path.join(self.out_dir, f"{self.user}_{current_date}_segments", "")
+                    videos_dir = os.path.join(self.output, f"{self.name}_{current_date}_segments", "")
                     os.makedirs(videos_dir)
                     for v in self.video_list:
                         shutil.move(v, videos_dir)
@@ -373,7 +315,7 @@ class TikTok:
     def get_room_id_from_user(self) -> str:
         """Given a username, get the room_id"""
         try:
-            response = self.req.get(f"https://www.tiktok.com/@{self.user}/live", allow_redirects=False, headers=bot_utils.headers)
+            response = self.req.get(f"https://www.tiktok.com/@{self.id}/live", allow_redirects=False, headers=bot_utils.headers)
             # logging.info(f'get_room_id_from_user response: {response.text}')
             if response.status_code == StatusCode.REDIRECT:
                 raise errors.Blacklisted("Redirect")
@@ -382,7 +324,7 @@ class TikTok:
                 raise ValueError("room_id not found")
             return match.group(1)
 
-        except (req.HTTPError, errors.Blacklisted) as e:
+        except (requests.HTTPError, errors.Blacklisted) as e:
             raise errors.Blacklisted(e)
         except AttributeError as e:
             raise errors.UserNotFound(f"{ErrorMsg.USERNAME_ERROR}\n{e}")
@@ -395,7 +337,7 @@ class TikTok:
         """Given a room_id, get the username"""
         try:
             url = f"https://www.tiktok.com/api/live/detail/?aid=1988&roomID={self.room_id}"
-            json = req.get(url, headers=bot_utils.headers).json()
+            json = requests.get(url, headers=bot_utils.headers).json()
             if not bot_utils.check_exists(json, ["LiveRoomInfo", "ownerInfo", "uniqueId"]):
                 logging.error(f"LiveRoomInfo.uniqueId not found in json: {json}")
                 raise errors.UserNotFound(ErrorMsg.USERNAME_ERROR)
@@ -407,3 +349,202 @@ class TikTok:
             raise e
         except Exception as ex:
             raise errors.GenericReq(ex)
+
+    ##################################################################################################
+
+    def get_ids(self, user_id):
+        url = f"https://www.tiktok.com/@{user_id}"
+
+        response = requests.get(url, headers=self.headers)
+        if response.status_code != 200:
+            print(f"페이지를 불러오는데 실패했습니다. 상태 코드: {response.status_code}")
+            return None
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        # print(soup.prettify())
+
+        script_tag = soup.find("script", id="__UNIVERSAL_DATA_FOR_REHYDRATION__")
+        # print(f"script 태그: {script_tag}")
+
+        if not script_tag:
+            print("해당 ID의 script 태그를 찾을 수 없습니다.")
+            return None
+
+        json_data = json.loads(script_tag.string)
+        # print(f"JSON 데이터: {json.dumps(json_data, indent=2)}")
+        if not json_data:
+            print("JSON 데이터를 불러올 수 없습니다.")
+            return None
+
+        default_scope = json_data.get("__DEFAULT_SCOPE__")
+        # print(f"Default scope: {json.dumps(default_scope, indent=2)}")
+        if not default_scope:
+            print("Default scope를 찾을 수 없습니다.")
+            return None
+        with open("default_scope.json", "w") as f:
+            json.dump(default_scope, f, indent=2)
+
+        user_detail = default_scope.get("webapp.user-detail")
+        # print(f"User detail: {json.dumps(user_detail, indent=2)}")
+        if not user_detail:
+            print("User detail을 찾을 수 없습니다.")
+            return None
+
+        user_info = user_detail.get("userInfo")
+        # print(f"User info: {json.dumps(user_info, indent=2)}")
+        if not user_info:
+            print("User info를 찾을 수 없습니다.")
+            return None
+
+        user = user_info.get("user")
+        # print(f"User: {json.dumps(user, indent=2)}")
+        if not user:
+            print("User를 찾을 수 없습니다.")
+            return None
+
+        room_id = user.get("roomId")
+        nickname = user.get("nickname")
+        unique_id = user.get("uniqueId")
+        # print(f"Room ID: {room_id}")
+        # print(f"닉네임: {nickname}")
+        # print(f"유니크 ID: {unique_id}")
+        if not room_id:
+            print("Room ID를 찾을 수 없습니다.")
+            return None
+
+        if not nickname:
+            print("닉네임을 찾을 수 없습니다.")
+            return None
+
+        if not unique_id:
+            print("유니크 ID를 찾을 수 없습니다.")
+            return None
+
+        return room_id, nickname, unique_id
+
+    def get_status(self, room_id):
+        url = f"https://webcast.tiktok.com/webcast/room/check_alive/?aid=1988&room_ids={room_id}"
+
+        response = requests.get(url, headers=self.headers)
+        if response.status_code != 200:
+            print(f"페이지를 불러오는데 실패했습니다. 상태 코드: {response.status_code}")
+            return None
+        # print(f"Response: {response.text}")
+
+        json_data = response.json()
+        # print(f"JSON 데이터: {json.dumps(json, indent=2)}")
+
+        status_code = json_data.get("status_code")
+        # print(f"Status code: {status_code}")
+        if status_code != 0:
+            print("Invalid status code")
+            return None
+
+        data = json_data.get("data")[0]
+        # print(f"Data: {json.dumps(data, indent=2)}")
+        if not data:
+            print("Data를 찾을 수 없습니다.")
+            return None
+
+        alive = data.get("alive")
+        # print(f"Alive: {alive}")
+        if alive is None:
+            print("Alive를 찾을 수 없습니다.")
+            return None
+
+        return alive
+
+    def get_title(self, room_id):
+        url = f"https://webcast.tiktok.com/webcast/room/info/?aid=1988&room_id={room_id}"
+
+        response = requests.get(url, headers=self.headers)
+        # print(f"Response: {response.text}")
+        if response.status_code != 200:
+            print(f"페이지를 불러오는데 실패했습니다. 상태 코드: {response.status_code}")
+            return None
+
+        json_data = response.json()
+        # print(f"JSON 데이터: {json.dumps(json, indent=2)}")
+
+        data = json_data.get("data")
+        # print(f"Data: {json.dumps(data, indent=2)}")
+        if not data:
+            print("Data를 찾을 수 없습니다.")
+            return None
+
+        title = data.get("title")
+        print(f"Title: {title}")
+        if not title:
+            print("Title을 찾을 수 없습니다.")
+            return None
+
+        return title
+
+    def test_get_live_url(self, room_id):
+        url = f"https://webcast.tiktok.com/webcast/room/info/?aid=1988&room_id={room_id}"
+
+        response = requests.get(url, headers=self.headers)
+        # print(f"Response: {response.text}")
+        if response.status_code != 200:
+            print(f"페이지를 불러오는데 실패했습니다. 상태 코드: {response.status_code}")
+            return None
+
+        json_data = response.json()
+        # print(f"JSON 데이터: {json.dumps(json, indent=2)}")
+
+        data = json_data.get("data")
+        # print(f"Data: {json.dumps(data, indent=2)}")
+        if not data:
+            print("Data를 찾을 수 없습니다.")
+            return None
+
+        stream_url = data.get("stream_url")
+        # print(f"Stream URL: {stream_url}")
+        if not stream_url:
+            print("Stream URL을 찾을 수 없습니다.")
+            return None
+
+        rtmp_pull_url = stream_url.get("rtmp_pull_url")
+        print(f"RTMP Pull URL: {rtmp_pull_url}")
+        if not rtmp_pull_url:
+            print("RTMP Pull URL을 찾을 수 없습니다.")
+            return None
+
+        return rtmp_pull_url
+
+    def get_filename(self, channel_name, flag, title, file_format):
+        live_time = time.strftime("%Y.%m.%d %H.%M.%S")
+        # Convert special characters in the filename to full-width characters
+        char_dict = {
+            '"': "＂",
+            "*": "＊",
+            ":": "：",
+            "<": "＜",
+            ">": "＞",
+            "?": "？",
+            "/": "／",
+            "\\": "＼",
+            "|": "｜",
+        }
+        for half, full in char_dict.items():
+            title = title.replace(half, full)
+
+        filename = f"[{live_time}]{flag}{title[:50]}.{file_format}"
+        return filename
+
+    def test_handle_recording_ffmpeg(self, live_url, out_file):
+        try:
+            proc = (
+                ffmpeg.input(
+                    live_url, **{"loglevel": "error"}, **{"reconnect": 1}, **{"reconnect_streamed": 1}, **{"reconnect_at_eof": 1}, **{"reconnect_delay_max": 5}, **{"timeout": 10000000}, stats=None
+                )
+                .output(out_file, c="copy")
+                .run_async(pipe_stderr=True)
+            )
+            while True:
+                if proc.poll() is not None:
+                    break
+        except KeyboardInterrupt as e:
+            raise e
+        except ValueError as e:
+            raise e

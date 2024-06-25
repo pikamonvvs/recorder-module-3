@@ -13,6 +13,7 @@ tiktokapi = "^6.3.0"
 tiktoklive = "^6.0.6"
 bs4 = "^0.0.2"
 types-requests = "^2.32.0.20240622"
+loguru = "^0.7.2"
 
 
 [build-system]
