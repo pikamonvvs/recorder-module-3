@@ -1,8 +1,8 @@
 import traceback
 
-import test_utils
+import utils
 from loguru import logger
-from test_recorders import *
+from recorders import *
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
     )
 
     try:
-        args = test_utils.parse_args()
+        args = utils.parse_args()
         platform = globals()[args.get("platform")]
         platform(args).run()
     except Exception as ex:
