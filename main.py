@@ -1,8 +1,9 @@
 import traceback
 
-import utils
 from loguru import logger
-from recorders import *
+
+import utils.utils as utils
+from recorders.recorders import *
 
 
 def main():
