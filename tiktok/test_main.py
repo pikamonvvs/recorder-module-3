@@ -1,8 +1,7 @@
 import traceback
 
-from loguru import logger
-
 import test_utils
+from loguru import logger
 from test_recorders import *
 
 

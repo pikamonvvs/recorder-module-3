@@ -71,7 +71,7 @@ class TikTok:
                     if self.out_file:
                         self.finish_recording()
                     else:
-                        bot_utils.retry_wait(WaitTime.SHORT, False)
+                        bot_utils.retry_wait(self.interval, False)
                 elif self.status == LiveStatus.LAGGING:
                     live_url = self.get_live_url()
                     self.start_recording(live_url)
@@ -84,7 +84,7 @@ class TikTok:
             except (errors.GenericReq, ValueError, requests.HTTPError, errors.BrowserExtractor, errors.ConnectionClosed, errors.UserNotFound) as e:
                 logger.error(e)
                 self.room_id = None
-                bot_utils.retry_wait(WaitTime.SHORT)
+                bot_utils.retry_wait(self.interval)
             except errors.Blacklisted as e:
                 logger.error(ErrorMsg.BLKLSTD_AUTO_MODE_ERROR)
                 raise e
@@ -185,7 +185,6 @@ class TikTok:
             current_date = time.strftime("%Y.%m.%d_%H-%M-%S", time.localtime())
             ffmpeg_concat_list = f"{self.name}_{current_date}_concat_list.txt"
             if len(self.video_list) > 1:
-
                 title = self.get_title(self.room_id) + "_concat"
                 output_file = self.get_filename(self.flag, title, self.format)
                 self.out_file = os.path.join(self.output, output_file)
@@ -307,67 +306,67 @@ class TikTok:
 
         response = requests.get(url, headers=self.headers)
         if response.status_code != 200:
-            print(f"페이지를 불러오는데 실패했습니다. 상태 코드: {response.status_code}")
+            logger.error(f"Failed to load the page. Status code: {response.status_code}")
             return None
 
         soup = BeautifulSoup(response.text, "html.parser")
-        # print(soup.prettify())
+        # logger.debug(soup.prettify())
 
         script_tag = soup.find("script", id="__UNIVERSAL_DATA_FOR_REHYDRATION__")
-        # print(f"script 태그: {script_tag}")
+        # logger.debug(f"Script tag: {script_tag}")
 
         if not script_tag:
-            print("해당 ID의 script 태그를 찾을 수 없습니다.")
+            logger.error("Cannot find script tag for this ID.")
             return None
 
         json_data = json.loads(script_tag.string)
-        # print(f"JSON 데이터: {json.dumps(json_data, indent=2)}")
+        # logger.debug(f"JSON data: {json.dumps(json_data, indent=2)}")
         if not json_data:
-            print("JSON 데이터를 불러올 수 없습니다.")
+            logger.error("Failed to load JSON data.")
             return None
 
         default_scope = json_data.get("__DEFAULT_SCOPE__")
-        # print(f"Default scope: {json.dumps(default_scope, indent=2)}")
+        # logger.debug(f"Default scope: {json.dumps(default_scope, indent=2)}")
         if not default_scope:
-            print("Default scope를 찾을 수 없습니다.")
+            logger.error("Cannot find default scope.")
             return None
         with open("default_scope.json", "w") as f:
             json.dump(default_scope, f, indent=2)
 
         user_detail = default_scope.get("webapp.user-detail")
-        # print(f"User detail: {json.dumps(user_detail, indent=2)}")
+        # logger.debug(f"User detail: {json.dumps(user_detail, indent=2)}")
         if not user_detail:
-            print("User detail을 찾을 수 없습니다.")
+            logger.error("Cannot find user detail.")
             return None
 
         user_info = user_detail.get("userInfo")
-        # print(f"User info: {json.dumps(user_info, indent=2)}")
+        # logger.debug(f"User info: {json.dumps(user_info, indent=2)}")
         if not user_info:
-            print("User info를 찾을 수 없습니다.")
+            logger.error("Cannot find user info.")
             return None
 
         user = user_info.get("user")
-        # print(f"User: {json.dumps(user, indent=2)}")
+        # logger.debug(f"User: {json.dumps(user, indent=2)}")
         if not user:
-            print("User를 찾을 수 없습니다.")
+            logger.error("Cannot find user.")
             return None
 
         room_id = user.get("roomId")
         # nickname = user.get("nickname")
         # unique_id = user.get("uniqueId")
-        # print(f"Room ID: {room_id}")
-        # print(f"닉네임: {nickname}")
-        # print(f"유니크 ID: {unique_id}")
+        # logger.debug(f"Room ID: {room_id}")
+        # logger.debug(f"Nickname: {nickname}")
+        # logger.debug(f"Unique ID: {unique_id}")
         if not room_id:
-            print("Room ID를 찾을 수 없습니다.")
+            logger.error("Cannot find Room ID.")
             return None
 
         # if not nickname:
-        #     print("닉네임을 찾을 수 없습니다.")
+        #     logger.error("Cannot find nickname.")
         #     return None
 
         # if not unique_id:
-        #     print("유니크 ID를 찾을 수 없습니다.")
+        #     logger.error("Cannot find unique ID.")
         #     return None
 
         return room_id
@@ -377,29 +376,29 @@ class TikTok:
 
         response = requests.get(url, headers=self.headers)
         if response.status_code != 200:
-            print(f"페이지를 불러오는데 실패했습니다. 상태 코드: {response.status_code}")
+            logger.error(f"Failed to load the page. Status code: {response.status_code}")
             return None
-        # print(f"Response: {response.text}")
+        # logger.debug(f"Response: {response.text}")
 
         json_data = response.json()
-        # print(f"JSON 데이터: {json.dumps(json, indent=2)}")
+        # logger.debug(f"JSON data: {json.dumps(json_data, indent=2)}")
 
         status_code = json_data.get("status_code")
-        # print(f"Status code: {status_code}")
+        # logger.debug(f"Status code: {status_code}")
         if status_code != 0:
-            print("Invalid status code")
+            logger.error("Invalid status code")
             return None
 
         data = json_data.get("data")[0]
-        # print(f"Data: {json.dumps(data, indent=2)}")
+        # logger.debug(f"Data: {json.dumps(data, indent=2)}")
         if not data:
-            print("Data를 찾을 수 없습니다.")
+            logger.error("Cannot find data.")
             return None
 
         alive = data.get("alive")
-        # print(f"Alive: {alive}")
+        # logger.debug(f"Alive: {alive}")
         if alive is None:
-            print("Alive를 찾을 수 없습니다.")
+            logger.error("Cannot find alive status.")
             return None
 
         return alive
@@ -408,24 +407,24 @@ class TikTok:
         url = f"https://webcast.tiktok.com/webcast/room/info/?aid=1988&room_id={room_id}"
 
         response = requests.get(url, headers=self.headers)
-        # print(f"Response: {response.text}")
+        # logger.debug(f"Response: {response.text}")
         if response.status_code != 200:
-            print(f"페이지를 불러오는데 실패했습니다. 상태 코드: {response.status_code}")
+            logger.error(f"Failed to load the page. Status code: {response.status_code}")
             return None
 
         json_data = response.json()
-        # print(f"JSON 데이터: {json.dumps(json, indent=2)}")
+        # logger.debug(f"JSON data: {json.dumps(json_data, indent=2)}")
 
         data = json_data.get("data")
-        # print(f"Data: {json.dumps(data, indent=2)}")
+        # logger.debug(f"Data: {json.dumps(data, indent=2)}")
         if not data:
-            print("Data를 찾을 수 없습니다.")
+            logger.error("Cannot find data.")
             return None
 
         title = data.get("title")
-        print(f"Title: {title}")
+        logger.debug(f"Title: {title}")
         if not title:
-            print("Title을 찾을 수 없습니다.")
+            logger.error("Cannot find title.")
             return None
 
         return title
@@ -434,30 +433,30 @@ class TikTok:
         url = f"https://webcast.tiktok.com/webcast/room/info/?aid=1988&room_id={room_id}"
 
         response = requests.get(url, headers=self.headers)
-        # print(f"Response: {response.text}")
+        # logger.debug(f"Response: {response.text}")
         if response.status_code != 200:
-            print(f"페이지를 불러오는데 실패했습니다. 상태 코드: {response.status_code}")
+            logger.error(f"Failed to load the page. Status code: {response.status_code}")
             return None
 
         json_data = response.json()
-        # print(f"JSON 데이터: {json.dumps(json, indent=2)}")
+        # logger.debug(f"JSON data: {json.dumps(json_data, indent=2)}")
 
         data = json_data.get("data")
-        # print(f"Data: {json.dumps(data, indent=2)}")
+        # logger.debug(f"Data: {json.dumps(data, indent=2)}")
         if not data:
-            print("Data를 찾을 수 없습니다.")
+            logger.error("Cannot find data.")
             return None
 
         stream_url = data.get("stream_url")
-        # print(f"Stream URL: {stream_url}")
+        # logger.debug(f"Stream URL: {stream_url}")
         if not stream_url:
-            print("Stream URL을 찾을 수 없습니다.")
+            logger.error("Cannot find stream URL.")
             return None
 
         rtmp_pull_url = stream_url.get("rtmp_pull_url")
-        print(f"RTMP Pull URL: {rtmp_pull_url}")
+        logger.debug(f"RTMP Pull URL: {rtmp_pull_url}")
         if not rtmp_pull_url:
-            print("RTMP Pull URL을 찾을 수 없습니다.")
+            logger.error("Cannot find RTMP Pull URL.")
             return None
 
         return rtmp_pull_url
