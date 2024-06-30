@@ -4,18 +4,23 @@ import os
 import re
 import sys
 import time
+from enum import Enum, IntEnum
 
 import ffmpeg
 import requests
 from bs4 import BeautifulSoup
 from loguru import logger
 
-import bot_utils
-import errors
-from enums import ErrorMsg, LiveStatus, StatusCode, WaitTime
+# import bot_utils
+# import errors
+
+# from enums import ErrorMsg, LiveStatus, StatusCode, WaitTime
 
 DEFAULT_INTERVAL = 10
-DEFAULT_HEADERS = {"User-Agent": "Chrome"}
+DEFAULT_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Referer": "https://www.tiktok.com/",
+}
 DEFAULT_OUTPUT = "output"
 DEFAULT_FORMAT = "ts"
 DEFAULT_PROXY = None
@@ -42,7 +47,7 @@ class TikTok:
 
         self.req = requests
         if self.proxy:
-            self.req = bot_utils.get_proxy_session(self.proxy)
+            self.req = get_proxy_session(self.proxy)
 
         self.status = LiveStatus.BOT_INIT
         self.out_file = None
@@ -52,7 +57,7 @@ class TikTok:
         while True:
             try:
                 if self.status == LiveStatus.LAGGING:
-                    bot_utils.retry_wait(WaitTime.LAG, False)
+                    retry_wait(WaitTime.LAG, False)
                 if not self.room_id:
                     self.room_id = self.test_get_room_id_from_user()
                 if not self.room_id:
@@ -71,7 +76,7 @@ class TikTok:
                     if self.out_file:
                         self.finish_recording()
                     else:
-                        bot_utils.retry_wait(self.interval, False)
+                        retry_wait(self.interval, False)
                 elif self.status == LiveStatus.LAGGING:
                     live_url = self.get_live_url()
                     self.start_recording(live_url)
@@ -81,11 +86,11 @@ class TikTok:
                     logger.info(f"Live URL: {live_url}")
                     self.start_recording(live_url)
 
-            except (errors.GenericReq, ValueError, requests.HTTPError, errors.BrowserExtractor, errors.ConnectionClosed, errors.UserNotFound) as e:
+            except (GenericReq, ValueError, requests.HTTPError, BrowserExtractor, ConnectionClosed, UserNotFound) as e:
                 logger.error(e)
                 self.room_id = None
-                bot_utils.retry_wait(self.interval)
-            except errors.Blacklisted as e:
+                retry_wait(self.interval)
+            except Blacklisted as e:
                 logger.error(ErrorMsg.BLKLSTD_AUTO_MODE_ERROR)
                 raise e
             except KeyboardInterrupt:
@@ -108,9 +113,9 @@ class TikTok:
         try:
             self.handle_recording_ffmpeg(live_url)
 
-        except errors.StreamLagging:
+        except StreamLagging:
             logger.info("Stream lagging")
-        except errors.FFmpeg as e:
+        except FFmpeg as e:
             logger.error("FFmpeg error:")
             logger.error(e)
         except FileNotFoundError as e:
@@ -167,10 +172,10 @@ class TikTok:
                     else:
                         ffmpeg_err = ffmpeg_err + "".join(line)
             if ffmpeg_err:
-                if bot_utils.lag_error(ffmpeg_err):
-                    raise errors.StreamLagging
+                if lag_error(ffmpeg_err):
+                    raise StreamLagging
                 else:
-                    raise errors.FFmpeg(ffmpeg_err.strip())
+                    raise FFmpeg(ffmpeg_err.strip())
         except KeyboardInterrupt as i:
             raise i
         except ValueError as e:
@@ -203,7 +208,7 @@ class TikTok:
                     for line in text_stream:
                         ffmpeg_err = ffmpeg_err + "".join(line)
                 if ffmpeg_err:
-                    raise errors.FFmpeg(ffmpeg_err.strip())
+                    raise FFmpeg(ffmpeg_err.strip())
                 logger.info("Concat finished")
                 for v in self.video_list:
                     os.remove(v)
@@ -212,7 +217,7 @@ class TikTok:
                 logger.info(f"Recording finished: {self.out_file}\n")
             if os.path.isfile(ffmpeg_concat_list):
                 os.remove(ffmpeg_concat_list)
-        except errors.FFmpeg as e:
+        except FFmpeg as e:
             logger.error("FFmpeg concat error:")
             logger.error(e)
         except Exception as ex:
@@ -220,12 +225,12 @@ class TikTok:
         self.video_list = []
         self.out_file = None
 
-    def is_user_live(self) -> LiveStatus:
+    def is_user_live(self):
         try:
             url = f"https://www.tiktok.com/api/live/detail/?aid=1988&roomID={self.room_id}"
-            json = self.req.get(url, headers=bot_utils.headers).json()
+            json = self.req.get(url, headers=self.headers).json()
             # logger.info(f'is_user_live response {json}')
-            if not bot_utils.check_exists(json, ["LiveRoomInfo", "status"]):
+            if not check_exists(json, ["LiveRoomInfo", "status"]):
                 raise ValueError(f"LiveRoomInfo.status not found in json: {json}")
             live_status_code = json["LiveRoomInfo"]["status"]
             if live_status_code != 4:
@@ -234,11 +239,11 @@ class TikTok:
                 return LiveStatus.OFFLINE
 
         except ConnectionAbortedError:
-            raise errors.ConnectionClosed(ErrorMsg.CONNECTION_CLOSED)
+            raise ConnectionClosed(ErrorMsg.CONNECTION_CLOSED)
         except ValueError as e:
             raise e
         except Exception as ex:
-            raise errors.GenericReq(ex)
+            raise GenericReq(ex)
 
     def get_live_url(self) -> str:
         """Get the cdn (flv or m3u8) of the stream"""
@@ -246,58 +251,58 @@ class TikTok:
             if self.status is not LiveStatus.LAGGING:
                 logger.info(f"Getting live url for room ID {self.room_id}")
             url = f"https://webcast.tiktok.com/webcast/room/info/?aid=1988&room_id={self.room_id}"
-            json = self.req.get(url, headers=bot_utils.headers).json()
-            if bot_utils.login_required(json):
-                raise errors.LoginRequired("Login required")
-            if not bot_utils.check_exists(json, ["data", "stream_url", "rtmp_pull_url"]):
+            json = self.req.get(url, headers=self.headers).json()
+            if login_required(json):
+                raise LoginRequired("Login required")
+            if not check_exists(json, ["data", "stream_url", "rtmp_pull_url"]):
                 raise ValueError(f"rtmp_pull_url not in response: {json}")
             return json["data"]["stream_url"]["rtmp_pull_url"]
         except ValueError as e:
             raise e
-        except errors.LoginRequired as e:
+        except LoginRequired as e:
             raise e
-        except errors.AgeRestricted as e:
+        except AgeRestricted as e:
             raise e
-        except errors.BrowserExtractor as e:
+        except BrowserExtractor as e:
             raise e
         except Exception as ex:
-            raise errors.GenericReq(ex)
+            raise GenericReq(ex)
 
     def get_room_id_from_user(self) -> str:
         try:
-            response = self.req.get(f"https://www.tiktok.com/@{self.id}/live", allow_redirects=False, headers=bot_utils.headers)
+            response = self.req.get(f"https://www.tiktok.com/@{self.id}/live", allow_redirects=False, headers=self.headers)
             # logger.info(f'get_room_id_from_user response: {response.text}')
             if response.status_code == StatusCode.REDIRECT:
-                raise errors.Blacklisted("Redirect")
+                raise Blacklisted("Redirect")
             match = re.search(r"room_id=(\d+)", response.text)
             if not match:
                 raise ValueError("room_id not found")
             return match.group(1)
 
-        except (requests.HTTPError, errors.Blacklisted) as e:
-            raise errors.Blacklisted(e)
+        except (requests.HTTPError, Blacklisted) as e:
+            raise Blacklisted(e)
         except AttributeError as e:
-            raise errors.UserNotFound(f"{ErrorMsg.USERNAME_ERROR}\n{e}")
+            raise UserNotFound(f"{ErrorMsg.USERNAME_ERROR}\n{e}")
         except ValueError as e:
             raise e
         except Exception as ex:
-            raise errors.GenericReq(ex)
+            raise GenericReq(ex)
 
     def get_user_from_room_id(self) -> str:
         try:
             url = f"https://www.tiktok.com/api/live/detail/?aid=1988&roomID={self.room_id}"
-            json = requests.get(url, headers=bot_utils.headers).json()
-            if not bot_utils.check_exists(json, ["LiveRoomInfo", "ownerInfo", "uniqueId"]):
+            json = requests.get(url, headers=self.headers).json()
+            if not check_exists(json, ["LiveRoomInfo", "ownerInfo", "uniqueId"]):
                 logger.error(f"LiveRoomInfo.uniqueId not found in json: {json}")
-                raise errors.UserNotFound(ErrorMsg.USERNAME_ERROR)
+                raise UserNotFound(ErrorMsg.USERNAME_ERROR)
             return json["LiveRoomInfo"]["ownerInfo"]["uniqueId"]
 
         except ConnectionAbortedError:
-            raise errors.ConnectionClosed(ErrorMsg.CONNECTION_CLOSED)
-        except errors.UserNotFound as e:
+            raise ConnectionClosed(ErrorMsg.CONNECTION_CLOSED)
+        except UserNotFound as e:
             raise e
         except Exception as ex:
-            raise errors.GenericReq(ex)
+            raise GenericReq(ex)
 
     ##################################################################################################
 
@@ -497,3 +502,170 @@ class TikTok:
             raise e
         except ValueError as e:
             raise e
+
+
+def lag_error(err_str) -> bool:
+    """Check if ffmpeg output indicates that the stream is lagging"""
+    lag_errors = ["Server returned 404 Not Found", "Stream ends prematurely", "Error in the pull function"]
+    return any(err in err_str for err in lag_errors)
+
+
+def retry_wait(seconds=60, print_msg=True):
+    """Sleep for the specified number of seconds"""
+    if print_msg:
+        if seconds < 60:
+            logger.info(f"Waiting {seconds} seconds")
+        else:
+            logger.info(f"Waiting {'%g' % (seconds / 60)} minute{'s' if seconds > 60 else ''}")
+    time.sleep(seconds)
+
+
+def check_exists(exp, value):
+    """Check if a nested json key exists"""
+    # For the case that we have an empty element
+    if exp is None:
+        return False
+    # Check existence of the first key
+    if value[0] in exp:
+        # if this is the last key in the list, then no need to look further
+        if len(value) == 1:
+            return True
+        else:
+            next_value = value[1 : len(value)]
+            return check_exists(exp[value[0]], next_value)
+    else:
+        return False
+
+
+def get_proxy_session(proxy_url):
+    """Request with TOR or other proxy.
+    TOR uses 9050 as the default socks port.
+    To (hopefully) prevent getting home IP blacklisted for bot activity.
+    """
+    try:
+        logger.info(f"Using proxy: {proxy_url}")
+        session = requests.session()
+        session.proxies = {"http": proxy_url, "https": proxy_url}
+        # logger.info("regular ip:")
+        # logger.info(req.get("http://httpbin.org/ip").text)
+        # logger.info("proxy ip:")
+        # logger.info(session.get("http://httpbin.org/ip").text)
+        return session
+    except Exception as ex:
+        logger.error(ex)
+        return requests
+
+
+def login_required(json) -> bool:
+    # logger.info(json)
+    if check_exists(json, ["data", "prompts"]) and "This account is private" in json["data"]["prompts"]:
+        logger.info("Account is private")
+        return True
+    elif check_exists(json, ["status_code"]) and json["status_code"] == 4003110:
+        raise AgeRestricted("Account is age restricted")
+    else:
+        return False
+
+
+class LiveStatus(IntEnum):
+    """Enumeration that defines potential states of the live stream"""
+
+    BOT_INIT = 0
+    LAGGING = 1
+    LIVE = 2
+    OFFLINE = 3
+
+
+class WaitTime(IntEnum):
+    """Enumeration that defines wait times in seconds."""
+
+    LONG = 120
+    SHORT = 10
+    LAG = 5
+
+
+class StatusCode(IntEnum):
+    """Enumeration that defines HTTP status codes."""
+
+    OK = 200
+    REDIRECT = 302
+    BAD_REQUEST = 400
+
+
+class Mode(IntEnum):
+    """Enumeration that represents the recording modes."""
+
+    MANUAL = 0
+    AUTOMATIC = 1
+
+
+class ErrorMsg(Enum):
+    """Enumeration of error messages"""
+
+    def __str__(self):
+        return str(self.value)
+
+    BLKLSTD_AUTO_MODE_ERROR: str = (
+        "Automatic mode can be used only in unblacklisted country. Use a VPN\n[*] "
+        "Unrestricted country list: "
+        "https://github.com/Michele0303/TikTok-Live-Recorder/edit/main/GUIDE.md#unrestricted"
+        "-country"
+    )
+    BLKLSTD_ERROR = (
+        "Captcha required or country blocked. Use a vpn or room_id."
+        "\nTo get room id: https://github.com/Michele0303/TikTok-Live-Recorder/blob/main/GUIDE.md#how-to-get-room_id"
+        "\nUnrestricted country list: https://github.com/Michele0303/TikTok-Live-Recorder/edit/main/GUIDE"
+        ".md#unrestricted-country"
+    )
+    USERNAME_ERROR = "Error: Username/Room_id not found or the user has never been in live"
+    CONNECTION_CLOSED = "Connection broken by the server."
+
+
+class Info(Enum):
+    """Enumeration that defines the version number and the banner message."""
+
+    def __str__(self):
+        return str(self.value)
+
+    VERSION = 4.2
+    BANNER = f"Tiktok Live Recorder v{VERSION}"
+
+
+class ConnectionClosed(Exception):
+    pass
+
+
+class UserNotFound(Exception):
+    pass
+
+
+class LoginRequired(Exception):
+    pass
+
+
+class AgeRestricted(Exception):
+    pass
+
+
+class Blacklisted(Exception):
+    pass
+
+
+class Recording(Exception):
+    pass
+
+
+class BrowserExtractor(Exception):
+    pass
+
+
+class GenericReq(Exception):
+    pass
+
+
+class FFmpeg(Exception):
+    pass
+
+
+class StreamLagging(Exception):
+    pass
