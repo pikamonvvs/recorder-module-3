@@ -54,6 +54,9 @@ class TikTok:
         self.video_list = [str]
 
     def run(self):
+        if not os.path.exists(self.output):
+            os.makedirs(self.output)
+
         while True:
             try:
                 if self.status == LiveStatus.LAGGING:
@@ -215,7 +218,7 @@ class TikTok:
                 logger.info(f"Deleted {len(self.video_list)} video files")
             if os.path.isfile(self.out_file):
                 logger.info(f"Recording finished: {self.out_file}\n")
-            if os.path.isfile(ffmpeg_concat_list):
+            if os.path.exists(ffmpeg_concat_list):
                 os.remove(ffmpeg_concat_list)
         except FFmpeg as e:
             logger.error("FFmpeg concat error:")
@@ -335,8 +338,8 @@ class TikTok:
         if not default_scope:
             logger.error("Cannot find default scope.")
             return None
-        with open("default_scope.json", "w") as f:
-            json.dump(default_scope, f, indent=2)
+        # with open("default_scope.json", "w") as f:
+        #     json.dump(default_scope, f, indent=2)
 
         user_detail = default_scope.get("webapp.user-detail")
         # logger.debug(f"User detail: {json.dumps(user_detail, indent=2)}")
