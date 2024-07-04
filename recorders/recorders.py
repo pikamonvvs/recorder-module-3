@@ -418,7 +418,7 @@ class TikTok:
         # logger.debug(f"Response: {response.text}")
         if response.status_code != 200:
             logger.error(f"Failed to load the page. Status code: {response.status_code}")
-            return None
+            return ""
 
         json_data = response.json()
         # logger.debug(f"JSON data: {json.dumps(json_data, indent=2)}")
@@ -427,13 +427,13 @@ class TikTok:
         # logger.debug(f"Data: {json.dumps(data, indent=2)}")
         if not data:
             logger.error("Cannot find data.")
-            return None
+            return ""
 
         title = data.get("title")
         logger.debug(f"Title: {title}")
         if not title:
             logger.error("Cannot find title.")
-            return None
+            return ""
 
         return title
 
