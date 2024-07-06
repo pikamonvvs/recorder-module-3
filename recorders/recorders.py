@@ -61,8 +61,8 @@ class TikTok:
             try:
                 if self.status == LiveStatus.LAGGING:
                     retry_wait(WaitTime.LAG, False)
-                if not self.room_id:
-                    self.room_id = self.test_get_room_id_from_user()
+                # if not self.room_id:
+                #     self.room_id = self.test_get_room_id_from_user()
                 if not self.room_id:
                     self.room_id = self.get_room_id_from_user()
                 if not self.name:
