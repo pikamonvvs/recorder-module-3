@@ -97,7 +97,7 @@ class TikTok:
                 logger.error(ErrorMsg.BLKLSTD_AUTO_MODE_ERROR)
                 raise e
             except KeyboardInterrupt:
-                logger.info("Stopped by keyboard interrupt\n")
+                logger.info("Stopped by keyboard interrupt.")
                 sys.exit(0)
 
     def start_recording(self, live_url):
@@ -199,7 +199,7 @@ class TikTok:
                 logger.info(f"Concatenating {len(self.video_list)} video files")
                 with open(ffmpeg_concat_list, "w") as file:
                     for v in self.video_list:
-                        file.write(f"file '{v}'\n")
+                        file.write(f"file '{v}'")
                 stream = ffmpeg.input(ffmpeg_concat_list, **{"f": "concat"}, **{"safe": 0}, **{"loglevel": "error"})
                 stream = ffmpeg.output(stream, self.out_file, c="copy")
                 proc = ffmpeg.run_async(stream, pipe_stderr=True)
@@ -217,7 +217,7 @@ class TikTok:
                     os.remove(v)
                 logger.info(f"Deleted {len(self.video_list)} video files")
             if os.path.isfile(self.out_file):
-                logger.info(f"Recording finished: {self.out_file}\n")
+                logger.info(f"Recording finished: {self.out_file}")
             if os.path.exists(ffmpeg_concat_list):
                 os.remove(ffmpeg_concat_list)
         except FFmpeg as e:
