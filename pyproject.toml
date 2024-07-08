@@ -17,6 +17,30 @@ loguru = "^0.7.2"
 pyinstaller = {version = "^6.8.0", python = ">=3.12,<3.13"}
 
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+
+[tool.pdm]
+distribution = false
+
+[tool.pdm.build]
+includes = []
+[project]
+name = "recorder-module-3"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "pikamonvvs", email = "pikamonvvs@naver.com"},
+]
+dependencies = [
+    "ffmpeg-python<1.0.0,>=0.2.0",
+    "requests<3.0.0,>=2.32.3",
+    "tiktokapi<7.0.0,>=6.3.0",
+    "tiktoklive<7.0.0,>=6.0.6",
+    "bs4<1.0.0,>=0.0.2",
+    "types-requests<3.0.0.0,>=2.32.0.20240622",
+    "loguru<1.0.0,>=0.7.2",
+    "pyinstaller<7.0.0,>=6.8.0; python_version >= \"3.12\" and python_version < \"3.13\"",
+]
+requires-python = "<4.0,>=3.12"
+readme = "README.md"
+license = {text = "MIT"}
+
