@@ -9,7 +9,8 @@ from enum import Enum, IntEnum
 import ffmpeg
 import requests
 from bs4 import BeautifulSoup
-from loguru import logger
+
+from utils.utils import logutil
 
 # import bot_utils
 # import errors
@@ -68,13 +69,13 @@ class TikTok:
                 if not self.name:
                     self.name = self.get_user_from_room_id()
                 if self.status == LiveStatus.BOT_INIT:
-                    logger.info(f"Username: {self.name}")
-                    logger.info(f"Room ID: {self.room_id}")
+                    logutil.info(self.flag, f"Username: {self.name}")
+                    logutil.info(self.flag, f"Room ID: {self.room_id}")
 
                 self.status = self.is_user_live()
 
                 if self.status == LiveStatus.OFFLINE:
-                    logger.info(f"{self.name} is offline")
+                    logutil.info(self.flag, f"{self.name} is offline")
                     self.room_id = None
                     if self.out_file:
                         self.finish_recording()
@@ -84,20 +85,20 @@ class TikTok:
                     live_url = self.get_live_url()
                     self.start_recording(live_url)
                 elif self.status == LiveStatus.LIVE:
-                    logger.info(f"{self.name} is live")
+                    logutil.info(self.flag, f"{self.name} is live")
                     live_url = self.get_live_url()
-                    logger.info(f"Live URL: {live_url}")
+                    logutil.info(self.flag, f"Live URL: {live_url}")
                     self.start_recording(live_url)
 
             except (GenericReq, ValueError, requests.HTTPError, BrowserExtractor, ConnectionClosed, UserNotFound) as e:
-                logger.error(e)
+                logutil.error(self.flag, e)
                 self.room_id = None
                 retry_wait(self.interval)
             except Blacklisted as e:
-                logger.error(ErrorMsg.BLKLSTD_AUTO_MODE_ERROR)
+                logutil.error(self.flag, ErrorMsg.BLKLSTD_AUTO_MODE_ERROR)
                 raise e
             except KeyboardInterrupt:
-                logger.info("Stopped by keyboard interrupt.")
+                logutil.warning(self.flag, "Stopped by keyboard interrupt.")
                 sys.exit(0)
 
     def start_recording(self, live_url):
@@ -112,36 +113,35 @@ class TikTok:
         self.out_file = os.path.join(self.output, output_file)
 
         if self.status is not LiveStatus.LAGGING:
-            logger.info(f"Output directory: {self.output}")
+            logutil.info(self.flag, f"Output directory: {self.output}")
         try:
             self.handle_recording_ffmpeg(live_url)
 
         except StreamLagging:
-            logger.info("Stream lagging")
+            logutil.info(self.flag, "Stream lagging")
         except FFmpeg as e:
-            logger.error("FFmpeg error:")
-            logger.error(e)
+            logutil.error(self.flag, f"FFmpeg error: {e}")
         except FileNotFoundError as e:
-            logger.error("FFmpeg is not installed.")
+            logutil.error(self.flag, "FFmpeg is not installed.")
             raise e
         except KeyboardInterrupt:
-            logger.info("Recording stopped by keyboard interrupt")
+            logutil.info(self.flag, "Recording stopped by keyboard interrupt")
             should_exit = True
         except Exception as e:
-            logger.error(f"Recording error: {e}")
+            logutil.error(self.flag, f"Recording error: {e}")
 
         self.status = LiveStatus.LAGGING
 
         try:
             if os.path.getsize(self.out_file) < 1048576:
                 os.remove(self.out_file)
-                # logger.info('removed file < 1MB')
+                # logutil.info(self.flag, "removed file < 1MB")
             else:
                 self.video_list.append(self.out_file)
         except FileNotFoundError:
             pass
         except Exception as e:
-            logger.error(e)
+            logutil.error(self.flag, e)
 
         if should_exit:
             self.finish_recording()
@@ -167,7 +167,7 @@ class TikTok:
                     if "frame=" in line:
                         last_stats = line
                         if not stats_shown:
-                            logger.info("Started recording")
+                            logutil.info(self.flag, "Started recording")
                             print("Press 'q' to re-start recording, CTRL + C to stop")
                             self.status = LiveStatus.LIVE
                         print(last_stats, end="\r")
@@ -182,10 +182,10 @@ class TikTok:
         except KeyboardInterrupt as i:
             raise i
         except ValueError as e:
-            logger.error(e)
+            logutil.error(self.flag, e)
         finally:
             if stats_shown:
-                logger.info(last_stats)
+                logutil.info(self.flag, last_stats)
 
     def finish_recording(self):
         """Combine multiple videos into one if needed"""
@@ -196,7 +196,7 @@ class TikTok:
                 title = self.get_title(self.room_id) + "_concat"
                 output_file = self.get_filename(self.flag, title, self.format)
                 self.out_file = os.path.join(self.output, output_file)
-                logger.info(f"Concatenating {len(self.video_list)} video files")
+                logutil.info(self.flag, f"Concatenating {len(self.video_list)} video files")
                 with open(ffmpeg_concat_list, "w") as file:
                     for v in self.video_list:
                         file.write(f"file '{v}'")
@@ -212,19 +212,19 @@ class TikTok:
                         ffmpeg_err = ffmpeg_err + "".join(line)
                 if ffmpeg_err:
                     raise FFmpeg(ffmpeg_err.strip())
-                logger.info("Concat finished")
+                logutil.info(self.flag, "Concat finished")
                 for v in self.video_list:
                     os.remove(v)
-                logger.info(f"Deleted {len(self.video_list)} video files")
+                logutil.info(self.flag, f"Deleted {len(self.video_list)} video files")
             if os.path.isfile(self.out_file):
-                logger.info(f"Recording finished: {self.out_file}")
+                logutil.info(self.flag, f"Recording finished: {self.out_file}")
             if os.path.exists(ffmpeg_concat_list):
                 os.remove(ffmpeg_concat_list)
         except FFmpeg as e:
-            logger.error("FFmpeg concat error:")
-            logger.error(e)
+            logutil.error(self.flag, "FFmpeg concat error:")
+            logutil.error(self.flag, e)
         except Exception as ex:
-            logger.error(ex)
+            logutil.error(self.flag, ex)
         self.video_list = []
         self.out_file = None
 
@@ -232,7 +232,7 @@ class TikTok:
         try:
             url = f"https://www.tiktok.com/api/live/detail/?aid=1988&roomID={self.room_id}"
             json = self.req.get(url, headers=self.headers).json()
-            # logger.info(f'is_user_live response {json}')
+            # logutil.info(self.flag, f"is_user_live response {json}")
             if not check_exists(json, ["LiveRoomInfo", "status"]):
                 raise ValueError(f"LiveRoomInfo.status not found in json: {json}")
             live_status_code = json["LiveRoomInfo"]["status"]
@@ -252,7 +252,7 @@ class TikTok:
         """Get the cdn (flv or m3u8) of the stream"""
         try:
             if self.status is not LiveStatus.LAGGING:
-                logger.info(f"Getting live url for room ID {self.room_id}")
+                logutil.info(self.flag, f"Getting live url for room ID {self.room_id}")
             url = f"https://webcast.tiktok.com/webcast/room/info/?aid=1988&room_id={self.room_id}"
             json = self.req.get(url, headers=self.headers).json()
             if login_required(json):
@@ -274,7 +274,7 @@ class TikTok:
     def get_room_id_from_user(self) -> str:
         try:
             response = self.req.get(f"https://www.tiktok.com/@{self.id}/live", allow_redirects=False, headers=self.headers)
-            # logger.info(f'get_room_id_from_user response: {response.text}')
+            # logutil.info(self.flag, f'get_room_id_from_user response: {response.text}')
             if response.status_code == StatusCode.REDIRECT:
                 raise Blacklisted("Redirect")
             match = re.search(r"room_id=(\d+)", response.text)
@@ -296,7 +296,7 @@ class TikTok:
             url = f"https://www.tiktok.com/api/live/detail/?aid=1988&roomID={self.room_id}"
             json = requests.get(url, headers=self.headers).json()
             if not check_exists(json, ["LiveRoomInfo", "ownerInfo", "uniqueId"]):
-                logger.error(f"LiveRoomInfo.uniqueId not found in json: {json}")
+                logutil.error(self.flag, f"LiveRoomInfo.uniqueId not found in json: {json}")
                 raise UserNotFound(ErrorMsg.USERNAME_ERROR)
             return json["LiveRoomInfo"]["ownerInfo"]["uniqueId"]
 
@@ -314,67 +314,67 @@ class TikTok:
 
         response = requests.get(url, headers=self.headers)
         if response.status_code != 200:
-            logger.error(f"Failed to load the page. Status code: {response.status_code}")
+            logutil.error(f"Failed to load the page. Status code: {response.status_code}")
             return None
 
         soup = BeautifulSoup(response.text, "html.parser")
-        # logger.debug(soup.prettify())
+        # logutil.debug(self.flag, soup.prettify())
 
         script_tag = soup.find("script", id="__UNIVERSAL_DATA_FOR_REHYDRATION__")
-        # logger.debug(f"Script tag: {script_tag}")
+        # logutil.debug(self.flag, f"Script tag: {script_tag}")
 
         if not script_tag:
-            logger.error("Cannot find script tag for this ID.")
+            logutil.error(self.flag, "Cannot find script tag for this ID.")
             return None
 
         json_data = json.loads(script_tag.string)
-        # logger.debug(f"JSON data: {json.dumps(json_data, indent=2)}")
+        # logutil.debug(self.flag, f"JSON data: {json.dumps(json_data, indent=2)}")
         if not json_data:
-            logger.error("Failed to load JSON data.")
+            logutil.error(self.flag, "Failed to load JSON data.")
             return None
 
         default_scope = json_data.get("__DEFAULT_SCOPE__")
-        # logger.debug(f"Default scope: {json.dumps(default_scope, indent=2)}")
+        # logutil.debug(self.flag, f"Default scope: {json.dumps(default_scope, indent=2)}")
         if not default_scope:
-            logger.error("Cannot find default scope.")
+            logutil.error(self.flag, "Cannot find default scope.")
             return None
         # with open("default_scope.json", "w") as f:
         #     json.dump(default_scope, f, indent=2)
 
         user_detail = default_scope.get("webapp.user-detail")
-        # logger.debug(f"User detail: {json.dumps(user_detail, indent=2)}")
+        # logutil.debug(self.flag, f"User detail: {json.dumps(user_detail, indent=2)}")
         if not user_detail:
-            logger.error("Cannot find user detail.")
+            logutil.error(self.flag, "Cannot find user detail.")
             return None
 
         user_info = user_detail.get("userInfo")
-        # logger.debug(f"User info: {json.dumps(user_info, indent=2)}")
+        # logutil.debug(self.flag, f"User info: {json.dumps(user_info, indent=2)}")
         if not user_info:
-            logger.error("Cannot find user info.")
+            logutil.error(self.flag, "Cannot find user info.")
             return None
 
         user = user_info.get("user")
-        # logger.debug(f"User: {json.dumps(user, indent=2)}")
+        # logutil.debug(self.flag, f"User: {json.dumps(user, indent=2)}")
         if not user:
-            logger.error("Cannot find user.")
+            logutil.error(self.flag, "Cannot find user.")
             return None
 
         room_id = user.get("roomId")
         # nickname = user.get("nickname")
         # unique_id = user.get("uniqueId")
-        # logger.debug(f"Room ID: {room_id}")
-        # logger.debug(f"Nickname: {nickname}")
-        # logger.debug(f"Unique ID: {unique_id}")
+        # logutil.debug(self.flag, f"Room ID: {room_id}")
+        # logutil.debug(self.flag, f"Nickname: {nickname}")
+        # logutil.debug(self.flag, f"Unique ID: {unique_id}")
         if not room_id:
-            logger.error("Cannot find Room ID.")
+            logutil.error(self.flag, "Cannot find Room ID.")
             return None
 
         # if not nickname:
-        #     logger.error("Cannot find nickname.")
+        #     logutil.error(self.flag, "Cannot find nickname.")
         #     return None
 
         # if not unique_id:
-        #     logger.error("Cannot find unique ID.")
+        #     logutil.error(self.flag, "Cannot find unique ID.")
         #     return None
 
         return room_id
@@ -384,29 +384,29 @@ class TikTok:
 
         response = requests.get(url, headers=self.headers)
         if response.status_code != 200:
-            logger.error(f"Failed to load the page. Status code: {response.status_code}")
+            logutil.error(self.flag, f"Failed to load the page. Status code: {response.status_code}")
             return None
-        # logger.debug(f"Response: {response.text}")
+        # logutil.debug(self.flag, f"Response: {response.text}")
 
         json_data = response.json()
-        # logger.debug(f"JSON data: {json.dumps(json_data, indent=2)}")
+        # logutil.debug(self.flag, f"JSON data: {json.dumps(json_data, indent=2)}")
 
         status_code = json_data.get("status_code")
-        # logger.debug(f"Status code: {status_code}")
+        # logutil.debug(self.flag, f"Status code: {status_code}")
         if status_code != 0:
-            logger.error("Invalid status code")
+            logutil.error(self.flag, "Invalid status code")
             return None
 
         data = json_data.get("data")[0]
-        # logger.debug(f"Data: {json.dumps(data, indent=2)}")
+        # logutil.debug(self.flag, f"Data: {json.dumps(data, indent=2)}")
         if not data:
-            logger.error("Cannot find data.")
+            logutil.error(self.flag, "Cannot find data.")
             return None
 
         alive = data.get("alive")
-        # logger.debug(f"Alive: {alive}")
+        # logutil.debug(self.flag, f"Alive: {alive}")
         if alive is None:
-            logger.error("Cannot find alive status.")
+            logutil.error(self.flag, "Cannot find alive status.")
             return None
 
         return alive
@@ -415,24 +415,24 @@ class TikTok:
         url = f"https://webcast.tiktok.com/webcast/room/info/?aid=1988&room_id={room_id}"
 
         response = requests.get(url, headers=self.headers)
-        # logger.debug(f"Response: {response.text}")
+        # logutil.debug(self.flag, f"Response: {response.text}")
         if response.status_code != 200:
-            logger.error(f"Failed to load the page. Status code: {response.status_code}")
+            logutil.error(f"Failed to load the page. Status code: {response.status_code}")
             return ""
 
         json_data = response.json()
-        # logger.debug(f"JSON data: {json.dumps(json_data, indent=2)}")
+        # logutil.debug(self.flag, f"JSON data: {json.dumps(json_data, indent=2)}")
 
         data = json_data.get("data")
-        # logger.debug(f"Data: {json.dumps(data, indent=2)}")
+        # logutil.debug(self.flag, f"Data: {json.dumps(data, indent=2)}")
         if not data:
-            logger.error("Cannot find data.")
+            logutil.error(self.flag, "Cannot find data.")
             return ""
 
         title = data.get("title")
-        logger.debug(f"Title: {title}")
+        logutil.debug(self.flag, f"Title: {title}")
         if not title:
-            logger.error("Cannot find title.")
+            logutil.error(self.flag, "Cannot find title.")
             return ""
 
         return title
@@ -441,30 +441,30 @@ class TikTok:
         url = f"https://webcast.tiktok.com/webcast/room/info/?aid=1988&room_id={room_id}"
 
         response = requests.get(url, headers=self.headers)
-        # logger.debug(f"Response: {response.text}")
+        # logutil.debug(self.flag, f"Response: {response.text}")
         if response.status_code != 200:
-            logger.error(f"Failed to load the page. Status code: {response.status_code}")
+            logutil.error(self.flag, f"Failed to load the page. Status code: {response.status_code}")
             return None
 
         json_data = response.json()
-        # logger.debug(f"JSON data: {json.dumps(json_data, indent=2)}")
+        # logutil.debug(self.flag, f"JSON data: {json.dumps(json_data, indent=2)}")
 
         data = json_data.get("data")
-        # logger.debug(f"Data: {json.dumps(data, indent=2)}")
+        # logutil.debug(self.flag, f"Data: {json.dumps(data, indent=2)}")
         if not data:
-            logger.error("Cannot find data.")
+            logutil.error(self.flag, "Cannot find data.")
             return None
 
         stream_url = data.get("stream_url")
-        # logger.debug(f"Stream URL: {stream_url}")
+        # logutil.debug(self.flag, f"Stream URL: {stream_url}")
         if not stream_url:
-            logger.error("Cannot find stream URL.")
+            logutil.error(self.flag, "Cannot find stream URL.")
             return None
 
         rtmp_pull_url = stream_url.get("rtmp_pull_url")
-        logger.debug(f"RTMP Pull URL: {rtmp_pull_url}")
+        logutil.debug(f"RTMP Pull URL: {rtmp_pull_url}")
         if not rtmp_pull_url:
-            logger.error("Cannot find RTMP Pull URL.")
+            logutil.error(self.flag, "Cannot find RTMP Pull URL.")
             return None
 
         return rtmp_pull_url
@@ -517,9 +517,9 @@ def retry_wait(seconds=60, print_msg=True):
     """Sleep for the specified number of seconds"""
     if print_msg:
         if seconds < 60:
-            logger.info(f"Waiting {seconds} seconds")
+            logutil.info(f"Waiting {seconds} seconds")
         else:
-            logger.info(f"Waiting {'%g' % (seconds / 60)} minute{'s' if seconds > 60 else ''}")
+            logutil.info(f"Waiting {'%g' % (seconds / 60)} minute{'s' if seconds > 60 else ''}")
     time.sleep(seconds)
 
 
@@ -546,23 +546,23 @@ def get_proxy_session(proxy_url):
     To (hopefully) prevent getting home IP blacklisted for bot activity.
     """
     try:
-        logger.info(f"Using proxy: {proxy_url}")
+        logutil.info(f"Using proxy: {proxy_url}")
         session = requests.session()
         session.proxies = {"http": proxy_url, "https": proxy_url}
-        # logger.info("regular ip:")
-        # logger.info(req.get("http://httpbin.org/ip").text)
-        # logger.info("proxy ip:")
-        # logger.info(session.get("http://httpbin.org/ip").text)
+        # logutil.info("regular ip:")
+        # logutil.info(req.get("http://httpbin.org/ip").text)
+        # logutil.info("proxy ip:")
+        # logutil.info(session.get("http://httpbin.org/ip").text)
         return session
     except Exception as ex:
-        logger.error(ex)
+        logutil.error(ex)
         return requests
 
 
 def login_required(json) -> bool:
-    # logger.info(json)
+    # logutil.info(json)
     if check_exists(json, ["data", "prompts"]) and "This account is private" in json["data"]["prompts"]:
-        logger.info("Account is private")
+        logutil.info("Account is private")
         return True
     elif check_exists(json, ["status_code"]) and json["status_code"] == 4003110:
         raise AgeRestricted("Account is age restricted")

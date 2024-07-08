@@ -1,5 +1,7 @@
 import argparse
 
+from loguru import logger
+
 PLATFORM_CHOICES = [
     "Afreeca",
     "Chzzk",
@@ -27,3 +29,45 @@ def parse_args():
     args_dict = {key: value for key, value in vars(args).items() if value is not None}
 
     return args_dict
+
+
+class Logger:
+    def __init__(self):
+        self.configure_logger()
+
+    def configure_logger(self):
+        logger.add(
+            sink="logs/log_{time:YYYY-MM-DD}.log",
+            rotation="00:00",
+            retention="3 days",
+            level="INFO",
+            encoding="utf-8",
+            format="[{time:YYYY-MM-DD HH:mm:ss}][{level}][{name}][{function}:{line}]{message}",
+        )
+        # logger.add("logs/log_general.txt", rotation="10MB", retention="10 days")
+        # logger.add("logs/log_info.txt", rotation="10MB", retention="10 days", level="INFO")
+        # logger.add("logs/log_warning.txt", rotation="10MB", retention="10 days", level="WARNING")
+        logger.add("logs/log_error.txt", rotation="10MB", retention="10 days", level="ERROR")
+
+    def debug(self, *args):
+        message = " ".join(str(arg) for arg in args)
+        logger.debug(message)
+
+    def info(self, *args):
+        message = " ".join(str(arg) for arg in args)
+        logger.info(message)
+
+    def warning(self, *args):
+        message = " ".join(str(arg) for arg in args)
+        logger.warning(message)
+
+    def error(self, *args):
+        message = " ".join(str(arg) for arg in args)
+        logger.error(message)
+
+    def exception(self, *args):
+        message = " ".join(str(arg) for arg in args)
+        logger.exception(message)
+
+
+logutil = Logger()
