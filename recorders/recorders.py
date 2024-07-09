@@ -168,9 +168,9 @@ class TikTok:
                         last_stats = line
                         if not stats_shown:
                             logutil.info(self.flag, "Started recording")
-                            print("Press 'q' to re-start recording, CTRL + C to stop")
+                            logutil.info(self.flag, "Press 'q' to re-start recording, CTRL + C to stop")
                             self.status = LiveStatus.LIVE
-                        print(last_stats, end="\r")
+                        logutil.info(self.flag, last_stats, end="\r")
                         stats_shown = True
                     else:
                         ffmpeg_err = ffmpeg_err + "".join(line)
@@ -200,9 +200,7 @@ class TikTok:
                 with open(ffmpeg_concat_list, "w") as file:
                     for v in self.video_list:
                         file.write(f"file '{v}'")
-                stream = ffmpeg.input(ffmpeg_concat_list, **{"f": "concat"}, **{"safe": 0}, **{"loglevel": "error"})
-                stream = ffmpeg.output(stream, self.out_file, c="copy")
-                proc = ffmpeg.run_async(stream, pipe_stderr=True)
+                proc = ffmpeg.input(ffmpeg_concat_list, **{"f": "concat"}, **{"safe": 0}, **{"loglevel": "error"}).output(self.out_file, c="copy").run_async(pipe_stderr=True)
                 text_stream = io.TextIOWrapper(proc.stderr, encoding="utf-8")
                 ffmpeg_err = ""
                 while True:
