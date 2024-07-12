@@ -170,7 +170,8 @@ class TikTok:
                             logutil.info(self.flag, "Started recording")
                             logutil.info(self.flag, "Press 'q' to re-start recording, CTRL + C to stop")
                             self.status = LiveStatus.LIVE
-                        logutil.info(self.flag, last_stats, end="\r")
+                        # logutil.info(self.flag, last_stats, end="\r")
+                        logutil.info(self.flag, last_stats)
                         stats_shown = True
                     else:
                         ffmpeg_err = ffmpeg_err + "".join(line)
