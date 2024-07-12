@@ -5,14 +5,13 @@
 groups = ["default"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.2"
-content_hash = "sha256:96c93c4218cc0bd51a859208e34f3212136a1d112671c8541f517b8066c7383c"
+content_hash = "sha256:3a3d7b7462080409ca64b6e071f4c00e8e49194e6d775abcc5fd23948f32219d"
 
 [[package]]
 name = "altgraph"
 version = "0.17.4"
 summary = "Python graph (network) package"
 groups = ["default"]
-marker = "python_version >= \"3.12\" and python_version < \"3.13\""
 files = [
     {file = "altgraph-0.17.4-py2.py3-none-any.whl", hash = "sha256:642743b4750de17e655e6711601b077bc6598dbfa3ba5fa2b2a35ce12b508dff"},
     {file = "altgraph-0.17.4.tar.gz", hash = "sha256:1b5afbb98f6c4dcadb2e2ae6ab9fa994bbb8c1d75f4fa96d340f9437ae454406"},
@@ -313,7 +312,7 @@ name = "macholib"
 version = "1.16.3"
 summary = "Mach-O header analysis and editing"
 groups = ["default"]
-marker = "python_version >= \"3.12\" and python_version < \"3.13\" and sys_platform == \"darwin\""
+marker = "sys_platform == \"darwin\""
 dependencies = [
     "altgraph>=0.17",
 ]
@@ -368,7 +367,6 @@ version = "24.1"
 requires_python = ">=3.8"
 summary = "Core utilities for Python packages"
 groups = ["default"]
-marker = "python_version >= \"3.12\" and python_version < \"3.13\""
 files = [
     {file = "packaging-24.1-py3-none-any.whl", hash = "sha256:5b8f2217dbdbd2f7f384c41c628544e6d52f2d0f53c6d0c3ea61aa5d1d7ff124"},
     {file = "packaging-24.1.tar.gz", hash = "sha256:026ed72c8ed3fcce5bf8950572258698927fd1dbda10a5e981cdf0ac37f4f002"},
@@ -380,7 +378,7 @@ version = "2023.2.7"
 requires_python = ">=3.6.0"
 summary = "Python PE parsing module"
 groups = ["default"]
-marker = "python_version >= \"3.12\" and python_version < \"3.13\" and sys_platform == \"win32\""
+marker = "sys_platform == \"win32\""
 files = [
     {file = "pefile-2023.2.7-py3-none-any.whl", hash = "sha256:da185cd2af68c08a6cd4481f7325ed600a88f6a813bad9dea07ab3ef73d8d8d6"},
     {file = "pefile-2023.2.7.tar.gz", hash = "sha256:82e6114004b3d6911c77c3953e3838654b04511b8b66e8583db70c65998017dc"},
@@ -455,7 +453,6 @@ version = "6.9.0"
 requires_python = "<3.13,>=3.8"
 summary = "PyInstaller bundles a Python application and all its dependencies into a single package."
 groups = ["default"]
-marker = "python_version >= \"3.12\" and python_version < \"3.13\""
 dependencies = [
     "altgraph",
     "macholib>=1.8; sys_platform == \"darwin\"",
@@ -486,7 +483,6 @@ version = "2024.7"
 requires_python = ">=3.7"
 summary = "Community maintained hooks for PyInstaller"
 groups = ["default"]
-marker = "python_version >= \"3.12\" and python_version < \"3.13\""
 dependencies = [
     "packaging>=22.0",
     "setuptools>=42.0.0",
@@ -541,7 +537,7 @@ version = "0.2.2"
 requires_python = ">=3.6"
 summary = "A (partial) reimplementation of pywin32 using ctypes/cffi"
 groups = ["default"]
-marker = "python_version >= \"3.12\" and python_version < \"3.13\" and sys_platform == \"win32\""
+marker = "sys_platform == \"win32\""
 files = [
     {file = "pywin32-ctypes-0.2.2.tar.gz", hash = "sha256:3426e063bdd5fd4df74a14fa3cf80a0b42845a87e1d1e81f6549f9daec593a60"},
     {file = "pywin32_ctypes-0.2.2-py3-none-any.whl", hash = "sha256:bf490a1a709baf35d688fe0ecf980ed4de11d2b3e37b51e5442587a75d9957e7"},
@@ -566,14 +562,13 @@ files = [
 
 [[package]]
 name = "setuptools"
-version = "70.2.0"
+version = "70.3.0"
 requires_python = ">=3.8"
 summary = "Easily download, build, install, upgrade, and uninstall Python packages"
 groups = ["default"]
-marker = "python_version >= \"3.12\" and python_version < \"3.13\""
 files = [
-    {file = "setuptools-70.2.0-py3-none-any.whl", hash = "sha256:b8b8060bb426838fbe942479c90296ce976249451118ef566a5a0b7d8b78fb05"},
-    {file = "setuptools-70.2.0.tar.gz", hash = "sha256:bd63e505105011b25c3c11f753f7e3b8465ea739efddaccef8f0efac2137bac1"},
+    {file = "setuptools-70.3.0-py3-none-any.whl", hash = "sha256:fe384da74336c398e0d956d1cae0669bc02eed936cdb1d49b57de1990dc11ffc"},
+    {file = "setuptools-70.3.0.tar.gz", hash = "sha256:f171bab1dfbc86b132997f26a119f6056a57950d058587841a0082e8830f9dc5"},
 ]
 
 [[package]]
@@ -626,7 +621,7 @@ files = [
 
 [[package]]
 name = "tiktoklive"
-version = "6.0.6"
+version = "6.0.8"
 summary = "TikTok Live Python Client"
 groups = ["default"]
 dependencies = [
@@ -641,13 +636,13 @@ dependencies = [
     "websockets-proxy>=0.1.0",
 ]
 files = [
-    {file = "TikTokLive-6.0.6-py3-none-any.whl", hash = "sha256:048693ac053630c6d97506404ef51f3e587a584f74aa02e7804f29debcb1fece"},
-    {file = "tiktoklive-6.0.6.tar.gz", hash = "sha256:e3cdfb27827b69aa94d7fa43e1ba8e5088cb925a4708de21b9bbc0045b57920f"},
+    {file = "TikTokLive-6.0.8-py3-none-any.whl", hash = "sha256:cbcd449b17eacf67f5b293106e0fc388c9633163df0b05853a56baaf832be1a9"},
+    {file = "tiktoklive-6.0.8.tar.gz", hash = "sha256:e28daf7203e680b395445e3d85110ee8cae80c2220a09daa54f6662e3e661e71"},
 ]
 
 [[package]]
 name = "types-requests"
-version = "2.32.0.20240622"
+version = "2.32.0.20240712"
 requires_python = ">=3.8"
 summary = "Typing stubs for requests"
 groups = ["default"]
@@ -655,8 +650,8 @@ dependencies = [
     "urllib3>=2",
 ]
 files = [
-    {file = "types-requests-2.32.0.20240622.tar.gz", hash = "sha256:ed5e8a412fcc39159d6319385c009d642845f250c63902718f605cd90faade31"},
-    {file = "types_requests-2.32.0.20240622-py3-none-any.whl", hash = "sha256:97bac6b54b5bd4cf91d407e62f0932a74821bc2211f22116d9ee1dd643826caf"},
+    {file = "types-requests-2.32.0.20240712.tar.gz", hash = "sha256:90c079ff05e549f6bf50e02e910210b98b8ff1ebdd18e19c873cd237737c1358"},
+    {file = "types_requests-2.32.0.20240712-py3-none-any.whl", hash = "sha256:f754283e152c752e46e70942fa2a146b5bc70393522257bb85bd1ef7e019dcc3"},
 ]
 
 [[package]]

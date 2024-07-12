@@ -62,8 +62,8 @@ class TikTok:
             try:
                 if self.status == LiveStatus.LAGGING:
                     retry_wait(WaitTime.LAG, False)
-                # if not self.room_id:
-                #     self.room_id = self.test_get_room_id_from_user()
+                if not self.room_id:
+                    self.room_id = self.test_get_room_id_from_user()
                 if not self.room_id:
                     self.room_id = self.get_room_id_from_user()
                 if not self.name:
@@ -310,162 +310,178 @@ class TikTok:
     def test_get_room_id_from_user(self):
         url = f"https://www.tiktok.com/@{self.id}"
 
-        response = requests.get(url, headers=self.headers)
-        if response.status_code != 200:
-            logutil.error(f"Failed to load the page. Status code: {response.status_code}")
-            return None
+        try:
+            response = requests.get(url, headers=self.headers)
+            if response.status_code != 200:
+                logutil.error(f"Failed to load the page. Status code: {response.status_code}")
+                return None
 
-        soup = BeautifulSoup(response.text, "html.parser")
-        # logutil.debug(self.flag, soup.prettify())
+            soup = BeautifulSoup(response.text, "html.parser")
+            # logutil.debug(self.flag, soup.prettify())
 
-        script_tag = soup.find("script", id="__UNIVERSAL_DATA_FOR_REHYDRATION__")
-        # logutil.debug(self.flag, f"Script tag: {script_tag}")
+            script_tag = soup.find("script", id="__UNIVERSAL_DATA_FOR_REHYDRATION__")
+            # logutil.debug(self.flag, f"Script tag: {script_tag}")
 
-        if not script_tag:
-            logutil.error(self.flag, "Cannot find script tag for this ID.")
-            return None
+            if not script_tag:
+                logutil.error(self.flag, "Cannot find script tag for this ID.")
+                return None
 
-        json_data = json.loads(script_tag.string)
-        # logutil.debug(self.flag, f"JSON data: {json.dumps(json_data, indent=2)}")
-        if not json_data:
-            logutil.error(self.flag, "Failed to load JSON data.")
-            return None
+            json_data = json.loads(script_tag.string)
+            # logutil.debug(self.flag, f"JSON data: {json.dumps(json_data, indent=2)}")
+            if not json_data:
+                logutil.error(self.flag, "Failed to load JSON data.")
+                return None
 
-        default_scope = json_data.get("__DEFAULT_SCOPE__")
-        # logutil.debug(self.flag, f"Default scope: {json.dumps(default_scope, indent=2)}")
-        if not default_scope:
-            logutil.error(self.flag, "Cannot find default scope.")
-            return None
-        # with open("default_scope.json", "w") as f:
-        #     json.dump(default_scope, f, indent=2)
+            default_scope = json_data.get("__DEFAULT_SCOPE__")
+            # logutil.debug(self.flag, f"Default scope: {json.dumps(default_scope, indent=2)}")
+            if not default_scope:
+                logutil.error(self.flag, "Cannot find default scope.")
+                return None
+            # with open("default_scope.json", "w") as f:
+            #     json.dump(default_scope, f, indent=2)
 
-        user_detail = default_scope.get("webapp.user-detail")
-        # logutil.debug(self.flag, f"User detail: {json.dumps(user_detail, indent=2)}")
-        if not user_detail:
-            logutil.error(self.flag, "Cannot find user detail.")
-            return None
+            user_detail = default_scope.get("webapp.user-detail")
+            # logutil.debug(self.flag, f"User detail: {json.dumps(user_detail, indent=2)}")
+            if not user_detail:
+                logutil.error(self.flag, "Cannot find user detail.")
+                return None
 
-        user_info = user_detail.get("userInfo")
-        # logutil.debug(self.flag, f"User info: {json.dumps(user_info, indent=2)}")
-        if not user_info:
-            logutil.error(self.flag, "Cannot find user info.")
-            return None
+            user_info = user_detail.get("userInfo")
+            # logutil.debug(self.flag, f"User info: {json.dumps(user_info, indent=2)}")
+            if not user_info:
+                logutil.error(self.flag, "Cannot find user info.")
+                return None
 
-        user = user_info.get("user")
-        # logutil.debug(self.flag, f"User: {json.dumps(user, indent=2)}")
-        if not user:
-            logutil.error(self.flag, "Cannot find user.")
-            return None
+            user = user_info.get("user")
+            # logutil.debug(self.flag, f"User: {json.dumps(user, indent=2)}")
+            if not user:
+                logutil.error(self.flag, "Cannot find user.")
+                return None
 
-        room_id = user.get("roomId")
-        # nickname = user.get("nickname")
-        # unique_id = user.get("uniqueId")
-        # logutil.debug(self.flag, f"Room ID: {room_id}")
-        # logutil.debug(self.flag, f"Nickname: {nickname}")
-        # logutil.debug(self.flag, f"Unique ID: {unique_id}")
-        if not room_id:
-            logutil.error(self.flag, "Cannot find Room ID.")
-            return None
+            room_id = user.get("roomId")
+            # nickname = user.get("nickname")
+            # unique_id = user.get("uniqueId")
+            # logutil.debug(self.flag, f"Room ID: {room_id}")
+            # logutil.debug(self.flag, f"Nickname: {nickname}")
+            # logutil.debug(self.flag, f"Unique ID: {unique_id}")
+            if not room_id:
+                logutil.error(self.flag, "Cannot find Room ID.")
+                return None
 
-        # if not nickname:
-        #     logutil.error(self.flag, "Cannot find nickname.")
-        #     return None
+            # if not nickname:
+            #     logutil.error(self.flag, "Cannot find nickname.")
+            #     return None
 
-        # if not unique_id:
-        #     logutil.error(self.flag, "Cannot find unique ID.")
-        #     return None
+            # if not unique_id:
+            #     logutil.error(self.flag, "Cannot find unique ID.")
+            #     return None
 
-        return room_id
+            return room_id
+        except Exception as e:
+            logutil.error(self.flag, f"Exception occurred: {e}")
+            raise e
 
     def get_status(self, room_id):
         url = f"https://webcast.tiktok.com/webcast/room/check_alive/?aid=1988&room_ids={room_id}"
 
-        response = requests.get(url, headers=self.headers)
-        if response.status_code != 200:
-            logutil.error(self.flag, f"Failed to load the page. Status code: {response.status_code}")
-            return None
-        # logutil.debug(self.flag, f"Response: {response.text}")
+        try:
+            response = requests.get(url, headers=self.headers)
+            if response.status_code != 200:
+                logutil.error(self.flag, f"Failed to load the page. Status code: {response.status_code}")
+                return None
+            # logutil.debug(self.flag, f"Response: {response.text}")
 
-        json_data = response.json()
-        # logutil.debug(self.flag, f"JSON data: {json.dumps(json_data, indent=2)}")
+            json_data = response.json()
+            # logutil.debug(self.flag, f"JSON data: {json.dumps(json_data, indent=2)}")
 
-        status_code = json_data.get("status_code")
-        # logutil.debug(self.flag, f"Status code: {status_code}")
-        if status_code != 0:
-            logutil.error(self.flag, "Invalid status code")
-            return None
+            status_code = json_data.get("status_code")
+            # logutil.debug(self.flag, f"Status code: {status_code}")
+            if status_code != 0:
+                logutil.error(self.flag, "Invalid status code")
+                return None
 
-        data = json_data.get("data")[0]
-        # logutil.debug(self.flag, f"Data: {json.dumps(data, indent=2)}")
-        if not data:
-            logutil.error(self.flag, "Cannot find data.")
-            return None
+            data = json_data.get("data")[0]
+            # logutil.debug(self.flag, f"Data: {json.dumps(data, indent=2)}")
+            if not data:
+                logutil.error(self.flag, "Cannot find data.")
+                return None
 
-        alive = data.get("alive")
-        # logutil.debug(self.flag, f"Alive: {alive}")
-        if alive is None:
-            logutil.error(self.flag, "Cannot find alive status.")
-            return None
+            alive = data.get("alive")
+            # logutil.debug(self.flag, f"Alive: {alive}")
+            if alive is None:
+                logutil.error(self.flag, "Cannot find alive status.")
+                return None
 
-        return alive
+            return alive
+        except Exception as e:
+            logutil.error(self.flag, f"Exception occurred: {e}")
+            raise e
 
     def get_title(self, room_id):
         url = f"https://webcast.tiktok.com/webcast/room/info/?aid=1988&room_id={room_id}"
 
-        response = requests.get(url, headers=self.headers)
-        # logutil.debug(self.flag, f"Response: {response.text}")
-        if response.status_code != 200:
-            logutil.error(f"Failed to load the page. Status code: {response.status_code}")
-            return ""
+        try:
+            response = requests.get(url, headers=self.headers)
+            # logutil.debug(self.flag, f"Response: {response.text}")
+            if response.status_code != 200:
+                logutil.error(f"Failed to load the page. Status code: {response.status_code}")
+                return ""
 
-        json_data = response.json()
-        # logutil.debug(self.flag, f"JSON data: {json.dumps(json_data, indent=2)}")
+            json_data = response.json()
+            # logutil.debug(self.flag, f"JSON data: {json.dumps(json_data, indent=2)}")
 
-        data = json_data.get("data")
-        # logutil.debug(self.flag, f"Data: {json.dumps(data, indent=2)}")
-        if not data:
-            logutil.error(self.flag, "Cannot find data.")
-            return ""
+            data = json_data.get("data")
+            # logutil.debug(self.flag, f"Data: {json.dumps(data, indent=2)}")
+            if not data:
+                logutil.error(self.flag, "Cannot find data.")
+                return ""
 
-        title = data.get("title")
-        logutil.debug(self.flag, f"Title: {title}")
-        if not title:
-            logutil.error(self.flag, "Cannot find title.")
-            return ""
+            title = data.get("title")
+            logutil.debug(self.flag, f"Title: {title}")
+            if not title:
+                logutil.error(self.flag, "Cannot find title.")
+                return ""
 
-        return title
+            return title
+        except Exception as e:
+            logutil.error(self.flag, f"Exception occurred: {e}")
+            raise e
 
     def test_get_live_url(self, room_id):
         url = f"https://webcast.tiktok.com/webcast/room/info/?aid=1988&room_id={room_id}"
 
-        response = requests.get(url, headers=self.headers)
-        # logutil.debug(self.flag, f"Response: {response.text}")
-        if response.status_code != 200:
-            logutil.error(self.flag, f"Failed to load the page. Status code: {response.status_code}")
-            return None
+        try:
+            response = requests.get(url, headers=self.headers)
+            # logutil.debug(self.flag, f"Response: {response.text}")
+            if response.status_code != 200:
+                logutil.error(self.flag, f"Failed to load the page. Status code: {response.status_code}")
+                return None
 
-        json_data = response.json()
-        # logutil.debug(self.flag, f"JSON data: {json.dumps(json_data, indent=2)}")
+            json_data = response.json()
+            # logutil.debug(self.flag, f"JSON data: {json.dumps(json_data, indent=2)}")
 
-        data = json_data.get("data")
-        # logutil.debug(self.flag, f"Data: {json.dumps(data, indent=2)}")
-        if not data:
-            logutil.error(self.flag, "Cannot find data.")
-            return None
+            data = json_data.get("data")
+            # logutil.debug(self.flag, f"Data: {json.dumps(data, indent=2)}")
+            if not data:
+                logutil.error(self.flag, "Cannot find data.")
+                return None
 
-        stream_url = data.get("stream_url")
-        # logutil.debug(self.flag, f"Stream URL: {stream_url}")
-        if not stream_url:
-            logutil.error(self.flag, "Cannot find stream URL.")
-            return None
+            stream_url = data.get("stream_url")
+            # logutil.debug(self.flag, f"Stream URL: {stream_url}")
+            if not stream_url:
+                logutil.error(self.flag, "Cannot find stream URL.")
+                return None
 
-        rtmp_pull_url = stream_url.get("rtmp_pull_url")
-        logutil.debug(f"RTMP Pull URL: {rtmp_pull_url}")
-        if not rtmp_pull_url:
-            logutil.error(self.flag, "Cannot find RTMP Pull URL.")
-            return None
+            rtmp_pull_url = stream_url.get("rtmp_pull_url")
+            logutil.debug(f"RTMP Pull URL: {rtmp_pull_url}")
+            if not rtmp_pull_url:
+                logutil.error(self.flag, "Cannot find RTMP Pull URL.")
+                return None
 
-        return rtmp_pull_url
+            return rtmp_pull_url
+        except Exception as e:
+            logutil.error(self.flag, f"Exception occurred: {e}")
+            raise e
 
     def get_filename(self, flag, title, file_format):
         live_time = time.strftime("%Y.%m.%d %H.%M.%S")
@@ -481,11 +497,16 @@ class TikTok:
             "\\": "＼",
             "|": "｜",
         }
-        for half, full in char_dict.items():
-            title = title.replace(half, full)
 
-        filename = f"[{live_time}]{flag}{title[:50]}.{file_format}"
-        return filename
+        try:
+            for half, full in char_dict.items():
+                title = title.replace(half, full)
+
+            filename = f"[{live_time}]{flag}{title[:50]}.{file_format}"
+            return filename
+        except Exception as e:
+            logutil.error(self.flag, f"Exception occurred: {e}")
+            return ""
 
     def test_handle_recording_ffmpeg(self, live_url, out_file):
         try:
@@ -502,6 +523,9 @@ class TikTok:
         except KeyboardInterrupt as e:
             raise e
         except ValueError as e:
+            raise e
+        except Exception as e:
+            logutil.error(self.flag, f"Exception occurred: {e}")
             raise e
 
 
