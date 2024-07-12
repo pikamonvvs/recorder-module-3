@@ -11,13 +11,13 @@ authors = [
     {name = "pikamonvvs", email = "pikamonvvs@naver.com"},
 ]
 dependencies = [
-    "ffmpeg-python<1.0.0,>=0.2.0",
-    "requests<3.0.0,>=2.32.3",
-    "tiktokapi<7.0.0,>=6.3.0",
-    "tiktoklive<7.0.0,>=6.0.6",
-    "bs4<1.0.0,>=0.0.2",
-    "types-requests<3.0.0.0,>=2.32.0.20240622",
-    "loguru<1.0.0,>=0.7.2",
+    "ffmpeg-python>=0.2.0",
+    "requests>=2.32.3",
+    "tiktokapi>=6.3.0",
+    "tiktoklive>=6.0.8",
+    "bs4>=0.0.2",
+    "types-requests>=2.32.0.20240712",
+    "loguru>=0.7.2",
     "pyinstaller>=6.9.0",
 ]
 requires-python = "<3.13,>=3.12"
