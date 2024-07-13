@@ -40,7 +40,8 @@ class Logger:
             sink="logs/log_{time:YYYY-MM-DD}.log",
             rotation="00:00",
             retention="3 days",
-            level="INFO",
+            # level="INFO",
+            level="ERROR",
             encoding="utf-8",
             format="[{time:YYYY-MM-DD HH:mm:ss}][{level}][{name}][{function}:{line}]{message}",
         )
