@@ -91,7 +91,10 @@ class TikTok:
                     self.start_recording(live_url)
 
             except (GenericReq, ValueError, requests.HTTPError, BrowserExtractor, ConnectionClosed, UserNotFound) as e:
-                logutil.error(self.flag, e)
+                if "room_id not found" in str(e):
+                    logutil.info(self.flag, e)
+                else:
+                    logutil.error(self.flag, e)
                 self.room_id = None
                 retry_wait(self.interval)
             except Blacklisted as e:
@@ -366,7 +369,7 @@ class TikTok:
             # logutil.debug(self.flag, f"Nickname: {nickname}")
             # logutil.debug(self.flag, f"Unique ID: {unique_id}")
             if not room_id:
-                logutil.error(self.flag, "Cannot find Room ID.")
+                logutil.info(self.flag, "Cannot find Room ID.")
                 return None
 
             # if not nickname:
