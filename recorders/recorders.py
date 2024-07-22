@@ -103,6 +103,9 @@ class TikTok:
             except KeyboardInterrupt:
                 logutil.warning(self.flag, "Stopped by keyboard interrupt.")
                 sys.exit(0)
+            except Exception as e:
+                logutil.error(self.flag, f"Unexpected error: {e}")
+                retry_wait(self.interval)
 
     def start_recording(self, live_url):
         """Start recording live"""
@@ -340,6 +343,7 @@ class TikTok:
             # logutil.debug(self.flag, f"Default scope: {json.dumps(default_scope, indent=2)}")
             if not default_scope:
                 logutil.error(self.flag, "Cannot find default scope.")
+                logutil.error(self.flag, f"Default scope: {json.dumps(default_scope, indent=2)}")
                 return None
             # with open("default_scope.json", "w") as f:
             #     json.dump(default_scope, f, indent=2)
@@ -348,18 +352,21 @@ class TikTok:
             # logutil.debug(self.flag, f"User detail: {json.dumps(user_detail, indent=2)}")
             if not user_detail:
                 logutil.error(self.flag, "Cannot find user detail.")
+                logutil.error(self.flag, f"User detail: {json.dumps(user_detail, indent=2)}")
                 return None
 
             user_info = user_detail.get("userInfo")
             # logutil.debug(self.flag, f"User info: {json.dumps(user_info, indent=2)}")
             if not user_info:
                 logutil.error(self.flag, "Cannot find user info.")
+                logutil.error(self.flag, f"User info: {json.dumps(user_info, indent=2)}")
                 return None
 
             user = user_info.get("user")
             # logutil.debug(self.flag, f"User: {json.dumps(user, indent=2)}")
             if not user:
                 logutil.error(self.flag, "Cannot find user.")
+                logutil.error(self.flag, f"User: {json.dumps(user, indent=2)}")
                 return None
 
             room_id = user.get("roomId")
@@ -381,9 +388,15 @@ class TikTok:
             #     return None
 
             return room_id
+        except requests.exceptions.SSLError as e:
+            logutil.error(self.flag, f"SSL error: {e}")
+            return None
+        except requests.exceptions.ConnectionError as e:
+            logutil.error(self.flag, f"Connection error: {e}")
+            return None
         except Exception as e:
             logutil.error(self.flag, f"Exception occurred: {e}")
-            raise e
+            return None
 
     def get_status(self, room_id):
         url = f"https://webcast.tiktok.com/webcast/room/check_alive/?aid=1988&room_ids={room_id}"
