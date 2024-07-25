@@ -223,8 +223,14 @@ class TikTok:
                 logutil.info(self.flag, f"Deleted {len(self.video_list)} video files")
             if os.path.isfile(self.out_file):
                 logutil.info(self.flag, f"Recording finished: {self.out_file}")
+
+            ffmpeg_concat_list_exists = os.path.exists(ffmpeg_concat_list)
+            logutil.info(self.flag, f"ffmpeg_concat_list: {ffmpeg_concat_list}")
+            logutil.info(self.flag, f"ffmpeg_concat_list_exists: {ffmpeg_concat_list_exists}")
             if os.path.exists(ffmpeg_concat_list):
                 os.remove(ffmpeg_concat_list)
+                logutil.info(self.flag, "Removed ffmpeg_concat_list.")
+
         except FFmpeg as e:
             logutil.error(self.flag, "FFmpeg concat error:")
             logutil.error(self.flag, e)
@@ -320,7 +326,10 @@ class TikTok:
         try:
             response = requests.get(url, headers=self.headers)
             if response.status_code != 200:
-                logutil.error(f"Failed to load the page. Status code: {response.status_code}")
+                if response.status_code == 403:
+                    logutil.info(self.flag, "Temporary error: 403 Forbidden.")
+                else:
+                    logutil.error(self.flag, f"Failed to load the page. Status code: {response.status_code}")
                 return None
 
             soup = BeautifulSoup(response.text, "html.parser")
