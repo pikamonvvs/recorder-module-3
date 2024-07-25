@@ -40,35 +40,30 @@ class Logger:
             sink="logs/log_{time:YYYY-MM-DD}.log",
             rotation="00:00",
             retention="3 days",
-            # level="INFO",
             level="ERROR",
             encoding="utf-8",
-            format="[{time:YYYY-MM-DD HH:mm:ss}][{level}][{name}][{function}:{line}]{message}",
+            format="[{{time:YYYY-MM-DD HH:mm:ss}}][{{level}}][{{name}}][{{function}}:{{line}}]{{message}}",
         )
-        # logger.add("logs/log_general.txt", rotation="10MB", retention="10 days")
-        # logger.add("logs/log_info.txt", rotation="10MB", retention="10 days", level="INFO")
-        # logger.add("logs/log_warning.txt", rotation="10MB", retention="10 days", level="WARNING")
-        # logger.add("logs/log_error.txt", rotation="10MB", retention="10 days", level="ERROR")
 
     def debug(self, *args):
         message = " ".join(str(arg) for arg in args)
-        logger.debug(message)
+        logger.opt(depth=1).debug(message)
 
     def info(self, *args):
         message = " ".join(str(arg) for arg in args)
-        logger.info(message)
+        logger.opt(depth=1).info(message)
 
     def warning(self, *args):
         message = " ".join(str(arg) for arg in args)
-        logger.warning(message)
+        logger.opt(depth=1).warning(message)
 
     def error(self, *args):
         message = " ".join(str(arg) for arg in args)
-        logger.error(message)
+        logger.opt(depth=1).error(message)
 
     def exception(self, *args):
         message = " ".join(str(arg) for arg in args)
-        logger.exception(message)
+        logger.opt(depth=1).exception(message)
 
 
 logutil = Logger()
